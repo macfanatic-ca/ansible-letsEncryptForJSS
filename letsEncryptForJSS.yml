@@ -1,0 +1,51 @@
+---
+########################### Target Host(s) ###########################
+# Specify a Single host
+#       hosts: server1
+# Specify a defined group of hosts from hosts inventory
+#       hosts: production
+# Specify a group of hosts
+#       hosts: server1:server2
+########################### Specify Host(s) ##########################
+- hosts:
+  vars:
+    # Disable new cronjob? true || false
+    cronDisabled: false
+########################### Do Not Modify ###########################
+  become: yes
+  vars_files:
+    - ../../vault/letsEncryptForJSS.yml
+  tasks:
+        - name: install certbot
+          yum:
+              name: certbot
+              state: latest
+          tags: certbot
+
+        - name: grab keystore pass
+          shell: grep keystorePass= /usr/local/jss/tomcat/conf/server.xml | awk -F"keystorePass=\"" '{ print $ 2 }' | awk -F"\">" '{ print $1 }'
+          register: letsEncryptForJSS_keystorePass
+          failed_when: "letsEncryptForJSS_keystorePass.rc != 0"
+          tags: script
+
+        - name: install script
+          template:
+              src: templates/letsEncryptForJSS.sh.j2
+              dest: /root/bin/letsEncryptForJSS.sh
+              owner: root
+              group: root
+              mode: 0700
+              backup: yes
+          tags: script
+
+        - name: configure cronjob
+          cron:
+              name: "renew jss cert"
+              job: "/root/bin/letsEncrypt-EL-JSS.sh"
+              minute: "{{ 59 | random }}"
+              hour: "1"
+              day: "1,15"
+              user: root
+              state: present
+              disabled: "{{ cronDisabled }}"
+          tags: cron
