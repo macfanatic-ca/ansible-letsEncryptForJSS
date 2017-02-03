@@ -23,7 +23,7 @@
           tags: certbot
 
         - name: grab keystore pass
-          shell: grep keystorePass= /usr/local/jss/tomcat/conf/server.xml | awk -F"keystorePass=\"" '{ print $ 2 }' | awk -F"\">" '{ print $1 }'
+          shell: grep keystorePass= /usr/local/jss/tomcat/conf/server.xml | awk -F"keystorePass=\"" '{ print $ 2 }' | awk -F"\"" '{ print $1 }'
           register: letsEncryptForJSS_keystorePass
           failed_when: "letsEncryptForJSS_keystorePass.rc != 0"
           tags: script
@@ -41,7 +41,7 @@
         - name: configure cronjob
           cron:
               name: "renew jss cert"
-              job: "/root/bin/letsEncrypt-EL-JSS.sh"
+              job: "/root/bin/letsEncryptELJSS.sh"
               minute: "{{ 59 | random }}"
               hour: "1"
               day: "1,15"
