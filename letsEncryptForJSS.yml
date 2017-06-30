@@ -18,7 +18,7 @@
   tasks:
         - name: install certbot
           yum:
-              name: certbot
+              name: certbot,python2-certbot-apache.noarch
               state: latest
           tags: certbot
 
@@ -44,7 +44,6 @@
               job: "/root/bin/letsEncryptELJSS.sh"
               minute: "{{ 59 | random }}"
               hour: "1"
-              day: "1,15"
               user: root
               state: present
               disabled: "{{ cronDisabled }}"

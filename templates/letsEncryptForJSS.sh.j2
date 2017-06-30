@@ -6,24 +6,20 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 serviceName=jamf.tomcat8
 # Add URL after /live/
 certDir=/etc/letsencrypt/live/{{ publicFQDN }}
-# Location of JAVA Keytool (w/o trailing /)
-keytoolDir=/bin
+# Web Root Directory
+webRootDir=/var/www/html
+# Location of JAVA Keytool
+keytoolPATH=/bin/keytool
 # Domain Name
 myDomain={{ publicFQDN }}
-# Port https service runs on
-servicePort=8443
-# Time to Renew (in Seconds)
-timeToRenew=2592000
 # Email Address
 myEmail={{ letsEncryptForJSS_email }}
-# Primary Network Device
-networkDevice=eth0
 # Location of keystore (found in server.xml)
 keystoreDir=/usr/local/jss/tomcat/TomcatSSLKeystore
 # Password for keystore (found in server.xml)
 keystorePass={{ letsEncryptForJSS_keystorePass.stdout }}
 # Test-only Cert (true || false)
-testCert=true
+testCert=false
 # Backup Keystore (true || false)
 backupKeystore=true
 # Enable Logging (true || false)
@@ -33,20 +29,10 @@ logLocation=/var/log/letsEncryptForJSS.log
 ######################## Do Not Modify ########################
 sendToLog () {
 if [ "$debug" == "true" ]; then
-logMessage=${*}
-date=`date "+%Y-%m-%d_%H:%M:%S"`
-echo "$date - $logMessage" >> $logLocation
+    logMessage=${*}
+    date=`date "+%Y-%m-%d_%H:%M:%S"`
+    echo "$date - $logMessage" >> $logLocation
 fi
-}
-
-createIPtables () {
-iptables -I INPUT -p tcp -m tcp --dport 9999 -j ACCEPT
-iptables -t nat -I PREROUTING -i $networkDevice -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 9999
-}
-
-removeIPtables () {
-iptables -t nat -D PREROUTING -i $networkDevice -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 9999
-iptables -D INPUT -p tcp -m tcp --dport 9999 -j ACCEPT
 }
 
 # Find certbot or certbot-auto
@@ -59,7 +45,6 @@ elif [ $? != 0 ]; then
     if [ $? == 0 ]; then
         certbot=`which certbot-auto`
         sendToLog "Found $cerbot"
-
     elif [ $? != 0 ]; then
         echo "ERROR: certbot not found, try running yum install certbot"
         sendToLog "ERROR: certbot not found, try running yum install certbot"
@@ -67,69 +52,50 @@ elif [ $? != 0 ]; then
     fi
 fi
 
-# Check existing cert status
-if [ "$1" != "-force" ] && [ "$1" != "-f" ]; then
-if true | openssl s_client -connect $myDomain:$servicePort 2>/dev/null | openssl x509 -noout -checkend $timeToRenew; then
-    echo "Certificate is not ready to renew"
-    sendToLog "Certificate is not ready to renew"
-    exit 0
-fi
-fi
-
-# Open IPtables
-createIPtables
-sendToLog "IPTables Temporarily Configured"
-
 # Create cert (prod or test)
 # test cert
 if [ $testCert == true ]; then
-sendToLog "Creating Test Certificate"
-$certbot certonly --standalone --test-cert --break-my-certs -d $myDomain --standalone-supported-challenges http-01 --http-01-port 9999 --renew-by-default --email $myEmail --agree-tos --quiet
+    sendToLog "Creating Test Certificate"
+    $certbot certonly -a apache --test-cert -d $myDomain --keep --email $myEmail --agree-tos --quiet
 # prod cert
 elif [ $testCert == false ]; then
-sendToLog "Creating Production Certificate"
-$certbot certonly --standalone -d $myDomain --standalone-supported-challenges http-01 --http-01-port 9999 --renew-by-default --email $myEmail --agree-tos --quiet
+    sendToLog "Creating Production Certificate"
+    $certbot certonly -a apache -d $myDomain --keep --email $myEmail --agree-tos --quiet
 # error and quit
 else
-echo "ERROR: Type of Certificate not specified"
-sendToLog "ERROR: Type of Certificate not specified"
-removeIPtables
-sendToLog "IPTables Reverted, Exiting"
-exit 1
+    echo "ERROR: Type of Certificate not specified"
+    sendToLog "ERROR: Type of Certificate not specified"
+    exit 1
 fi
-
-# Close IPtables
-removeIPtables
-sendToLog "IPTables Reverted"
 
 # Backup old keystore
 if [ $backupKeystore == true ]; then
-sendToLog "Backing up old Keystore"
-cp -R $keystoreDir "$keystoreDir".old
+    sendToLog "Backing up old Keystore"
+    cp -R $keystoreDir "$keystoreDir".old
 fi
 
 # Remove old certs
 sendToLog "Removing old Certificates"
-$keytoolDir/keytool -delete -alias root -storepass $keystorePass -keystore $keystoreDir
-$keytoolDir/keytool -delete -alias tomcat -storepass $keystorePass -keystore $keystoreDir
-$keytoolDir/keytool -delete -alias cacert -storepass $keystorePass -keystore $keystoreDir
+$keytoolPATH -delete -alias root -storepass $keystorePass -keystore $keystoreDir
+$keytoolPATH -delete -alias tomcat -storepass $keystorePass -keystore $keystoreDir
+$keytoolPATH -delete -alias cacert -storepass $keystorePass -keystore $keystoreDir
 
 # Create P12
 sendToLog "Creating P12 bundle"
-openssl pkcs12 -export -in $certDir/fullchain.pem -inkey $certDir/privkey.pem -out $certDir/cert_and_key.p12 -name tomcat -CAfile $certDir/chain.pem -caname root -password pass:$keystorePass
+/bin/openssl pkcs12 -export -in $certDir/fullchain.pem -inkey $certDir/privkey.pem -out $certDir/cert_and_key.p12 -name tomcat -CAfile $certDir/chain.pem -caname root -password pass:$keystorePass
 
 # Import P12 into keystore
 sendToLog "Importing P12 into keystore"
-$keytoolDir/keytool -importkeystore -srcstorepass $keystorePass -deststorepass $keystorePass -destkeypass $keystorePass -srckeystore $certDir/cert_and_key.p12 -srcstoretype PKCS12 -alias tomcat -keystore $keystoreDir
-$keytoolDir/keytool -import -trustcacerts -alias root -deststorepass $keystorePass -file $certDir/chain.pem -noprompt -keystore $keystoreDir
+$keytoolPATH -importkeystore -srcstorepass $keystorePass -deststorepass $keystorePass -destkeypass $keystorePass -srckeystore $certDir/cert_and_key.p12 -srcstoretype PKCS12 -alias tomcat -keystore $keystoreDir
+$keytoolPATH -import -trustcacerts -alias root -deststorepass $keystorePass -file $certDir/chain.pem -noprompt -keystore $keystoreDir
 
 # Restart Tomcat service
 sendToLog "Restarting $serviceName"
-systemctl restart $serviceName
+/bin/systemctl restart $serviceName
 if [ $? != 0 ]; then
-echo "ERROR: failed to restart $serviceName"
-sendToLog "ERROR: failed to restart $serviceName"
-exit 1
+    echo "ERROR: failed to restart $serviceName"
+    sendToLog "ERROR: failed to restart $serviceName"
+    exit 1
 fi
 
 # Exit cleanly
