@@ -7,7 +7,7 @@
 # Specify a group of hosts
 #       hosts: server1:server2
 ########################### Specify Host(s) ##########################
-- hosts:
+- hosts: mcs-jss-sbx
   vars:
     # Disable new cronjob? true || false
     cronDisabled: false
@@ -28,10 +28,30 @@
           failed_when: "letsEncryptForJSS_keystorePass.rc != 0"
           tags: script
 
-        - name: install script
+        - name: install certbot-JamfPro
           template:
-              src: templates/letsEncryptForJSS.sh.j2
-              dest: /root/bin/letsEncryptForJSS.sh
+              src: templates/certbot-JamfPro.j2
+              dest: /root/etc/certbot-JamfPro
+              owner: root
+              group: root
+              mode: 0700
+              backup: yes
+          tags: script
+
+        - name: install certbot-keystore-JamfPro.sh
+          template:
+              src: templates/certbot-keystore-JamfPro.sh.j2
+              dest: /root/bin/certbot-keystore-JamfPro.sh
+              owner: root
+              group: root
+              mode: 0700
+              backup: yes
+          tags: script
+
+        - name: install certbot-JamfPro.sh
+          template:
+              src: templates/certbot-JamfPro.sh.j2
+              dest: /root/bin/certbot-JamfPro.sh
               owner: root
               group: root
               mode: 0700
@@ -41,7 +61,7 @@
         - name: configure cronjob
           cron:
               name: "renew jss cert"
-              job: "/root/bin/letsEncryptELJSS.sh"
+              job: "/root/bin/certbot-JamfPro.sh --renew"
               minute: "{{ 59 | random }}"
               hour: "1"
               user: root
