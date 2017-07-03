@@ -3,25 +3,33 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 ########################## Variables ##########################
 # Service name for systemctl
 serviceName=jamf.tomcat8
+
 # Add URL after /live/
 certDir=/etc/letsencrypt/live/{{ publicFQDN }}
-# Web Root Directory
-webRootDir=/var/www/html
+
 # Location of JAVA Keytool
 keytoolPATH=/bin/keytool
+
 # Domain Name
 myDomain={{ publicFQDN }}
+
 # Email Address
 myEmail={{ letsEncryptForJSS_email }}
+
 # Location of keystore (found in server.xml)
 keystoreDir=/usr/local/jss/tomcat/TomcatSSLKeystore
+
 # Password for keystore (found in server.xml)
 keystorePass={{ letsEncryptForJSS_keystorePass.stdout }}
+
 # Test-only Cert (true || false)
 testCert=false
+
 # Backup Keystore (true || false)
 backupKeystore=true
+
 # Enable Logging (true || false)
 debug=true
+
 # Log Location
 logLocation=/var/log/letsEncryptForJSS.log
