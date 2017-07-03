@@ -7,7 +7,7 @@
 # Specify a group of hosts
 #       hosts: server1:server2
 ########################### Specify Host(s) ##########################
-- hosts: mcs-jss-sbx
+- hosts: 
   vars:
     # Disable new cronjob? true || false
     cronDisabled: false
