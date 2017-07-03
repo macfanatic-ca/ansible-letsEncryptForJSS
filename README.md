@@ -14,5 +14,9 @@ RHEL 7 & CentOS 7
 
 ## Changelog
 
+**v2.0 (2017-07-02)**
+* Rewritten for easy renewals
+* Removed deprecated `certbot` flags  
+
 **v1.0 (2016-02-06)**
 * Original Release
