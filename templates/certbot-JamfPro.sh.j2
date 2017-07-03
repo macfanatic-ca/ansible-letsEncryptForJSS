@@ -11,7 +11,6 @@ if [[ ${#} -lt 1 ]] || [[ ${*} == *"-h"* ]] || [[ ${*} == *"--help"* ]]; then
 	{% endraw %}
 fi
 source /root/etc/certbot-JamfPro
-source /root/bin/certbot-keystore-JamfPro.sh
 
 sendToLog () {
 if [ "$debug" == "true" ]; then
@@ -42,23 +41,19 @@ fi
 	# create test cert
 if [[ $testCert == true && "$1" == "--create" ]]; then
     sendToLog "Creating Test Certificate"
-    $certbot certonly -a apache --noninteractive --test-cert -d $myDomain --keep --email $myEmail --agree-tos --quiet
-		updateKeystore
-		restartTomcat
+    $certbot certonly -a apache --noninteractive --test-cert -d $myDomain --keep --email $myEmail --agree-tos --renew-by-default --quiet --post-hook /root/bin/certbot-keystore-JamfPro.sh
 	# create prod cert
 elif [[ $testCert == false && "$1" == "--create" ]]; then
     sendToLog "Creating Production Certificate"
-    $certbot certonly -a apache --noninteractive -d $myDomain --keep --email $myEmail --agree-tos --quiet
-		updateKeystore
-		restartTomcat
+    $certbot certonly -a apache --noninteractive -d $myDomain --keep --email $myEmail --agree-tos --renew-by-default --quiet --post-hook /root/bin/certbot-keystore-JamfPro.sh
 	# renew test cert
 elif [[ $testCert == true && "$1" == "--renew" ]]; then
     sendToLog "Attempting Renewal of Test Certificate"
-    $certbot certonly -a apache --noninteractive --test-cert -d $myDomain --keep --email $myEmail --agree-tos --quiet --renew-hook /root/bin/certbot-keystore-JamfPro.sh --renewal
+    $certbot certonly -a apache --noninteractive --test-cert -d $myDomain --keep --email $myEmail --agree-tos --quiet --renew-hook /root/bin/certbot-keystore-JamfPro.sh
 	# renew prod cert
 elif [[ $testCert == false && "$1" == "--renew" ]]; then
 		sendToLog "Attempting Renewal of Production Certificate"
-		$certbot certonly -a apache --noninteractive -d $myDomain --keep --email $myEmail --agree-tos --quiet --renew-hook /root/bin/certbot-keystore-JamfPro.sh --renewal
+		$certbot certonly -a apache --noninteractive -d $myDomain --keep --email $myEmail --agree-tos --quiet --renew-hook /root/bin/certbot-keystore-JamfPro.sh
 	# error and quit
 else
     echo "ERROR: Type of Certificate not specified"
